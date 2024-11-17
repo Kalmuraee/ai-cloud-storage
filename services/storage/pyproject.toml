@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "storage-service"
+version = "0.1.0"
+description = "Storage service for AI Cloud Storage platform"
+authors = ["OpenHands <openhands@all-hands.dev>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.104.1"
+uvicorn = "^0.24.0"
+python-multipart = "^0.0.6"
+minio = "^7.1.17"
+pydantic = "^2.4.2"
+pydantic-settings = "^2.0.3"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+pytest-asyncio = "^0.21.1"
+httpx = "^0.25.1"
+black = "^23.10.1"
+isort = "^5.12.0"
+flake8 = "^6.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
