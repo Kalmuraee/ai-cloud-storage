@@ -108,6 +108,38 @@ services:
         reservations:
           memory: 2G
 
+auth-service:
+    build: ./services/auth
+    ports:
+      - "8002:8002"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: aicloud
+      POSTGRES_PASSWORD: aicloud
+      POSTGRES_DB: aicloud
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SMTP_HOST: smtp
+      SMTP_PORT: 25
+      SMTP_USER: your-smtp-user
+      SMTP_PASSWORD: your-smtp-password
+      EMAILS_FROM_EMAIL: noreply@aicloud.com
+    depends_on:
+      - postgres
+      - redis
+      - smtp
+
+  redis:
+    image: redis:7.0-alpine
+    ports:
+      - "6379:6379"
+
+  smtp:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 volumes:
   minio_data:
   postgres_data:

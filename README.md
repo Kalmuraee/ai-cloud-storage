@@ -10,6 +10,36 @@ An enterprise-grade cloud storage platform with advanced AI capabilities for int
 - Real-time data processing
 - Modern web interface
 - Scalable microservices architecture
+## Core Features
+
+1. **Authentication and Authorization**:
+   - User registration
+   - User login
+   - Email verification
+   - Password reset
+   - Role-based access control (RBAC)
+
+2. **File Storage and Management**:
+   - S3-compatible file storage and management
+   - File upload and download
+   - Bucket management
+
+3. **AI-Powered Content Analysis and Processing**:
+   - Document processing pipeline
+   - Embedding generation
+   - Vector storage and search
+
+4. **Intelligent Search**:
+   - Semantic search capabilities
+   - Vector similarity-based search
+
+5. **Real-time Data Processing**:
+   - Asynchronous processing with Kafka
+   - Scalable message processing
+
+6. **Web Interface**:
+   - Modern, responsive user interface
+   - Integrated with the backend services
 
 ## Tech Stack
 

@@ -15,6 +15,96 @@ from app.schemas.token import TokenPayload
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login"
 )
+def get_current_active_user(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not current_user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+    return current_user
+
+def get_current_superuser(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="The user is not a superuser")
+    return current_user
+
+def has_permission(
+    required_permissions: List[str],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    user_permissions = db.query(Permission).join(Role.permissions).join(User.roles).filter(User.id == current_user.id).all()
+    user_permission_names = [p.name for p in user_permissions]
+    for required_permission in required_permissions:
+        if required_permission not in user_permission_names:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"User is missing the '{required_permission}' permission",
+            )
+    return current_user
+def get_current_active_user(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not current_user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+    return current_user
+
+def get_current_superuser(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="The user is not a superuser")
+    return current_user
+
+def has_permission(
+    required_permissions: List[str],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    user_permissions = db.query(Permission).join(Role.permissions).join(User.roles).filter(User.id == current_user.id).all()
+    user_permission_names = [p.name for p in user_permissions]
+    for required_permission in required_permissions:
+        if required_permission not in user_permission_names:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"User is missing the '{required_permission}' permission",
+            )
+    return current_user
+def get_current_active_user(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not current_user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+    return current_user
+
+def get_current_superuser(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="The user is not a superuser")
+    return current_user
+
+def has_permission(
+    required_permissions: List[str],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    user_permissions = db.query(Permission).join(Role.permissions).join(User.roles).filter(User.id == current_user.id).all()
+    user_permission_names = [p.name for p in user_permissions]
+    for required_permission in required_permissions:
+        if required_permission not in user_permission_names:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"User is missing the '{required_permission}' permission",
+            )
+    return current_user
 
 def get_db() -> Generator:
     """

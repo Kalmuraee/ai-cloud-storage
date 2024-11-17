@@ -61,15 +61,62 @@ class DocumentProcessor:
     async def _extract_text(self, file_data: bytes, file_extension: str) -> str:
         """Extract text from a file based on its type."""
         try:
-            if file_extension == 'pdf':
-                # Create a temporary file-like object
-                file_obj = io.BytesIO(file_data)
-                loader = PyPDFLoader(file_obj)
-                pages = loader.load()
-                return '\n'.join(page.page_content for page in pages)
-            
-            elif file_extension in ['txt', 'md', 'json']:
+            # Text files
+            if file_extension in ['txt', 'md', 'json', 'csv', 'yaml', 'yml']:
                 return file_data.decode('utf-8')
+            
+            # PDF files
+            elif file_extension == 'pdf':
+                try:
+                    # Try normal PDF extraction first
+                    file_obj = io.BytesIO(file_data)
+                    loader = PyPDFLoader(file_obj)
+                    pages = loader.load()
+                    text = '\n'.join(page.page_content for page in pages)
+                    
+                    # If no text was extracted, try OCR
+                    if not text.strip():
+                        from app.services.ocr import ocr_service
+                        text = await ocr_service.extract_text_from_pdf_with_ocr(file_data)
+                    return text
+                except Exception as e:
+                    # Fallback to OCR if normal extraction fails
+                    from app.services.ocr import ocr_service
+                    return await ocr_service.extract_text_from_pdf_with_ocr(file_data)
+            
+            # Office documents
+            elif file_extension in ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']:
+                # Convert to PDF first using LibreOffice
+                temp_dir = tempfile.mkdtemp()
+                input_path = os.path.join(temp_dir, f"input.{file_extension}")
+                output_path = os.path.join(temp_dir, "output.pdf")
+                
+                try:
+                    with open(input_path, 'wb') as f:
+                        f.write(file_data)
+                    
+                    # Convert to PDF
+                    subprocess.run([
+                        'soffice',
+                        '--headless',
+                        '--convert-to',
+                        'pdf',
+                        '--outdir',
+                        temp_dir,
+                        input_path
+                    ], check=True)
+                    
+                    # Read the PDF and extract text
+                    with open(output_path, 'rb') as f:
+                        pdf_data = f.read()
+                    return await self._extract_text(pdf_data, 'pdf')
+                finally:
+                    shutil.rmtree(temp_dir)
+            
+            # Image files
+            elif file_extension in ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif']:
+                from app.services.ocr import ocr_service
+                return await ocr_service.extract_text_from_image(file_data)
             
             else:
                 raise HTTPException(
