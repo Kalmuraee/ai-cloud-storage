@@ -1,111 +1,133 @@
-# AI Cloud Storage Platform
+# AI Cloud Storage
 
-An enterprise-grade cloud storage platform with advanced AI capabilities for intelligent content management and processing.
-
-## Features
-
-- File storage and management with S3-compatible API
-- AI-powered content analysis and processing
-- Intelligent search with vector similarity
-- Real-time data processing
-- Modern web interface
-- Scalable microservices architecture
-## Core Features
-
-1. **Authentication and Authorization**:
-   - User registration
-   - User login
-   - Email verification
-   - Password reset
-   - Role-based access control (RBAC)
-
-2. **File Storage and Management**:
-   - S3-compatible file storage and management
-   - File upload and download
-   - Bucket management
-
-3. **AI-Powered Content Analysis and Processing**:
-   - Document processing pipeline
-   - Embedding generation
-   - Vector storage and search
-
-4. **Intelligent Search**:
-   - Semantic search capabilities
-   - Vector similarity-based search
-
-5. **Real-time Data Processing**:
-   - Asynchronous processing with Kafka
-   - Scalable message processing
-
-6. **Web Interface**:
-   - Modern, responsive user interface
-   - Integrated with the backend services
-
-## Tech Stack
-
-- **Frontend**: Next.js, TypeScript, Tailwind CSS
-- **Storage**: MinIO (S3-compatible)
-- **Vector Database**: Weaviate
-- **AI/ML**: Hugging Face, LangChain
-- **Message Broker**: Apache Kafka
-- **Distributed Computing**: Ray
-- **Container Orchestration**: Docker, Kubernetes
-
-## Prerequisites
-
-- Docker and Docker Compose
-- Node.js 18+
-- Python 3.10+
-- kubectl (for Kubernetes deployment)
-
-## Quick Start
-
-1. Clone the repository
-```bash
-git clone https://github.com/yourusername/ai-cloud-storage.git
-cd ai-cloud-storage
-```
-
-2. Start the development environment
-```bash
-docker-compose up -d
-```
-
-3. Start the frontend development server
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-4. Access the services:
-- Frontend: http://localhost:3000
-- MinIO Console: http://localhost:9001
-- Weaviate: http://localhost:8080
-- API Gateway: http://localhost:8000
-
-## Development
-
-Check the [Development Guide](docs/development.md) for detailed instructions.
+An AI-powered cloud storage service built with FastAPI using a modular monolith architecture.
 
 ## Architecture
 
-The platform is built using a microservices architecture:
+This project follows a modular monolith architecture, which provides a balance between the simplicity of a monolith and the maintainability of microservices. The codebase is organized into distinct modules, each with its own clear boundaries and responsibilities.
 
-- Gateway Service: API Gateway and request routing
-- Auth Service: Authentication and authorization
-- Storage Service: File management and S3 operations
-- AI Processor: Content analysis and AI processing
-- Search Service: Vector search and content discovery
-- Realtime Service: Stream processing and real-time updates
+### Core Modules
 
-## Documentation
+1. **Storage Module** (`app/modules/storage`)
+   - File storage and retrieval
+   - File metadata management
+   - Storage optimization
 
-- [API Documentation](docs/api.md)
-- [Architecture Overview](docs/architecture.md)
-- [Deployment Guide](docs/deployment.md)
-- [Contributing Guidelines](docs/contributing.md)
+2. **AI Processor Module** (`app/modules/ai_processor`)
+   - File content analysis
+   - AI-powered search
+   - Content classification
+   - Text extraction and processing
+
+3. **Auth Module** (`app/modules/auth`)
+   - User authentication
+   - Authorization
+   - Token management
+
+### Shared Components
+
+- **Core** (`app/core`)
+  - Configuration
+  - Logging
+  - Database connections
+  - Cache management
+  - Common utilities
+
+### Project Structure
+
+```
+ai-cloud-storage/
+├── app/
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── logging.py
+│   │   └── cache.py
+│   ├── modules/
+│   │   ├── storage/
+│   │   │   ├── models.py
+│   │   │   ├── service.py
+│   │   │   └── routes.py
+│   │   ├── ai_processor/
+│   │   │   ├── models.py
+│   │   │   ├── service.py
+│   │   │   └── routes.py
+│   │   └── auth/
+│   │       ├── models.py
+│   │       ├── service.py
+│   │       └── routes.py
+│   └── main.py
+├── tests/
+├── alembic/
+├── requirements.txt
+└── docker-compose.yml
+```
+
+## Features
+
+- File upload and download
+- AI-powered file search
+- Content analysis and classification
+- User authentication and authorization
+- File metadata management
+- Caching and performance optimization
+
+## Technology Stack
+
+- **Framework**: FastAPI
+- **Database**: PostgreSQL with SQLAlchemy
+- **Cache**: Redis
+- **Storage**: MinIO
+- **AI/ML**: LangChain, Transformers
+- **Authentication**: JWT
+
+## Getting Started
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/ai-cloud-storage.git
+   cd ai-cloud-storage
+   ```
+
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+5. Start the services:
+   ```bash
+   docker-compose up -d  # Starts PostgreSQL, Redis, and MinIO
+   ```
+
+6. Run migrations:
+   ```bash
+   alembic upgrade head
+   ```
+
+7. Start the application:
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+
+The API will be available at http://localhost:8000/api/docs
+
+## Development
+
+- **Code Style**: Black + isort
+- **Testing**: pytest
+- **Documentation**: OpenAPI (Swagger)
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the LICENSE file for details.

@@ -1,62 +1,89 @@
+'use client';
+
 import { useState } from 'react';
-import { useRouter } from 'next/router';
-import { useAuth } from '@/components/features/auth/AuthContext';
+import { useForm } from 'react-hook-form';
+import Link from 'next/link';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginSchema, type LoginInput } from '@/lib/validations/auth';
+import { useAuth } from '@/contexts/AuthContext';
+import Input from '@/components/ui/Input';
+import Button from '@/components/ui/Button';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const { login } = useAuth();
-  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const onSubmit = async (data: LoginInput) => {
     try {
-      await login(email, password);
-      router.push('/dashboard');
-    } catch (error) {
-      console.error('Login error:', error);
+      setIsLoading(true);
+      setError(null);
+      await login(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sign in');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="z-10 max-w-md w-full items-center justify-between font-mono text-sm">
-        <h1 className="text-4xl font-bold text-center mb-8">Login</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block mb-2 font-medium">
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 w-full"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block mb-2 font-medium">
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 w-full"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg w-full"
+    <div className="space-y-6">
+      <div>
+        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
+          Sign in to your account
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Or{' '}
+          <Link
+            href="/register"
+            className="font-medium text-indigo-600 hover:text-indigo-500"
           >
-            Login
-          </button>
-        </form>
+            create a new account
+          </Link>
+        </p>
       </div>
+
+      <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+        <Input
+          id="email"
+          type="email"
+          label="Email address"
+          error={errors.email?.message}
+          {...register('email')}
+        />
+
+        <Input
+          id="password"
+          type="password"
+          label="Password"
+          error={errors.password?.message}
+          {...register('password')}
+        />
+
+        <div>
+          <Button
+            type="submit"
+            className="w-full"
+            isLoading={isLoading}
+          >
+            Sign in
+          </Button>
+        </div>
+
+        {error && (
+          <div className="text-red-600 text-sm text-center">
+            {error}
+          </div>
+        )}
+      </form>
     </div>
-  );
+  )
 }

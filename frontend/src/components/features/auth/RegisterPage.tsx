@@ -1,88 +1,85 @@
+'use client';
+
+import { useForm } from 'react-hook-form';
+import Link from 'next/link';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useAuth } from '@/contexts/AuthContext';
+import Input from '@/components/ui/Input';
+import Button from '@/components/ui/Button';
 import { useState } from 'react';
-import { useRouter } from 'next/router';
-import { useAuth } from '@/components/features/auth/AuthContext';
+
+const registerSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+type RegisterInput = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const { register } = useAuth();
-  const router = useRouter();
+  const { register: registerUser } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: RegisterInput) => {
     try {
-      await register(email, username, password, fullName);
-      router.push('/login');
+      setLoading(true);
+      await registerUser(data);
     } catch (error) {
       console.error('Registration error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="z-10 max-w-md w-full items-center justify-between font-mono text-sm">
-        <h1 className="text-4xl font-bold text-center mb-8">Register</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block mb-2 font-medium">
-              Email
-            </label>
-            <input
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Create your account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Or{' '}
+            <Link
+              href="/login"
+              className="font-medium text-indigo-600 hover:text-indigo-500"
+            >
+              sign in to your account
+            </Link>
+          </p>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          <div className="rounded-md shadow-sm space-y-4">
+            <Input
+              label="Email"
               type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 w-full"
-              required
+              {...register('email')}
+              error={errors.email?.message}
             />
-          </div>
-          <div>
-            <label htmlFor="username" className="block mb-2 font-medium">
-              Username
-            </label>
-            <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 w-full"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block mb-2 font-medium">
-              Password
-            </label>
-            <input
+            <Input
+              label="Password"
               type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 w-full"
-              required
+              {...register('password')}
+              error={errors.password?.message}
             />
           </div>
+
           <div>
-            <label htmlFor="fullName" className="block mb-2 font-medium">
-              Full Name
-            </label>
-            <input
-              type="text"
-              id="fullName"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 w-full"
-              required
-            />
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading}
+            >
+              {loading ? 'Creating account...' : 'Create account'}
+            </Button>
           </div>
-          <button
-            type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg w-full"
-          >
-            Register
-          </button>
         </form>
       </div>
     </div>

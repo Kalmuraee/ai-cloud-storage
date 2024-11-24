@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect } from 'react'
 import {
   DocumentIcon,
   FolderIcon,
@@ -6,28 +6,23 @@ import {
   ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
+import useStore from '@/store/useStore'
 
 interface FileItem {
+  id: string
   name: string
   size: number
   lastModified: string
   type: 'file' | 'folder'
+  metadata?: Record<string, any>
 }
 
-interface FileListProps {
-  files: FileItem[]
-  onDownload: (file: FileItem) => void
-  onDelete: (file: FileItem) => void
-  onNavigate: (file: FileItem) => void
-}
+export default function FileList() {
+  const { files, currentPath, isLoading, error, fetchFiles, deleteFile } = useStore()
 
-export default function FileList({
-  files,
-  onDownload,
-  onDelete,
-  onNavigate,
-}: FileListProps) {
-  const [selectedFile, setSelectedFile] = useState<FileItem | null>(null)
+  useEffect(() => {
+    fetchFiles(currentPath)
+  }, [currentPath, fetchFiles])
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes'
@@ -35,6 +30,14 @@ export default function FileList({
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  if (isLoading) {
+    return <div className="text-center py-4">Loading...</div>
+  }
+
+  if (error) {
+    return <div className="text-red-500 text-center py-4">{error}</div>
   }
 
   return (
@@ -60,54 +63,41 @@ export default function FileList({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {files.map((file) => (
-                  <tr
-                    key={file.name}
-                    className={`${
-                      selectedFile?.name === file.name ? 'bg-gray-50' : ''
-                    } hover:bg-gray-50`}
-                    onClick={() => setSelectedFile(file)}
-                  >
+                {files.map((file: FileItem) => (
+                  <tr key={file.id}>
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                       <div className="flex items-center">
                         {file.type === 'folder' ? (
-                          <FolderIcon className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                          <FolderIcon className="h-5 w-5 text-gray-400" />
                         ) : (
-                          <DocumentIcon className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                          <DocumentIcon className="h-5 w-5 text-gray-400" />
                         )}
-                        <div className="ml-4">
-                          <button
-                            className="font-medium text-gray-900 hover:text-primary-600"
-                            onClick={() => onNavigate(file)}
-                          >
-                            {file.name}
-                          </button>
-                        </div>
+                        <span className="ml-2 truncate">{file.name}</span>
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {file.type === 'file' ? formatFileSize(file.size) : '--'}
+                      {formatFileSize(file.size)}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                       {formatDistanceToNow(new Date(file.lastModified), { addSuffix: true })}
                     </td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <div className="flex justify-end gap-2">
-                        {file.type === 'file' && (
-                          <button
-                            onClick={() => onDownload(file)}
-                            className="text-primary-600 hover:text-primary-900"
-                          >
-                            <ArrowDownTrayIcon className="h-5 w-5" />
-                          </button>
-                        )}
+                      <button
+                        onClick={() => deleteFile(file.id)}
+                        className="text-red-600 hover:text-red-900 mr-4"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                        <span className="sr-only">Delete</span>
+                      </button>
+                      {file.type === 'file' && (
                         <button
-                          onClick={() => onDelete(file)}
-                          className="text-red-600 hover:text-red-900"
+                          onClick={() => window.open(`/api/v1/documents/${file.id}/download`)}
+                          className="text-indigo-600 hover:text-indigo-900"
                         >
-                          <TrashIcon className="h-5 w-5" />
+                          <ArrowDownTrayIcon className="h-5 w-5" />
+                          <span className="sr-only">Download</span>
                         </button>
-                      </div>
+                      )}
                     </td>
                   </tr>
                 ))}
