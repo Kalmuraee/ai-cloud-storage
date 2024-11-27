@@ -1,158 +1,195 @@
-"""
-Test configuration and fixtures for modular AI cloud storage
-"""
+"""Test configuration and fixtures."""
 import os
 import pytest
-import pytest_asyncio
-from typing import AsyncGenerator, Dict, Any
+import logging
+import asyncio
+from typing import AsyncGenerator, Generator
+import httpx
+from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from minio import Minio
-import redis.asyncio as redis
-from fastapi import FastAPI
+from sqlalchemy import text
 from fastapi.testclient import TestClient
+from minio import Minio
+from passlib.context import CryptContext
 
-from app.core.config import Settings
+from app.main import app
+from app.core.config import settings
 from app.core.database import Base, get_db
-from app.modules.auth.models import User
-from app.modules.storage.models import File, FileMetadata
-from app.modules.ai_processor.models import ProcessingTask, ProcessingResult
-from app.main import create_app
+from app.modules.auth.security import create_access_token
+from app.modules.auth.models import User, Token
 
-settings = Settings()
+from tests.logging_config import setup_test_logging
 
-# Test database
-TEST_POSTGRES_URL = os.getenv("TEST_POSTGRES_URL", "postgresql+asyncpg://test:test@localhost:5432/test_aicloud")
+# Set up logging for tests
+setup_test_logging()
+logger = logging.getLogger(__name__)
+
+# Create test database URL with test user
+TEST_DATABASE_URL = "postgresql+asyncpg://test:test@localhost:5432/ai_cloud_storage_test"
+
+logger.info(f"Using test database URL: {TEST_DATABASE_URL}")
+
+# Create password context for hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Create async engine for tests
+engine = create_async_engine(
+    TEST_DATABASE_URL,
+    echo=False,
+    future=True
+)
+
+# Create async session factory
+TestingSessionLocal = sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
 
 @pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    import asyncio
+def event_loop() -> Generator:
+    """Create an instance of the default event loop for each test case."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
-@pytest_asyncio.fixture(scope="session")
-async def engine():
-    """Create a test database engine."""
-    engine = create_async_engine(TEST_POSTGRES_URL, echo=True)
-    
+@pytest.fixture(scope="session")
+async def db() -> AsyncGenerator[AsyncSession, None]:
+    """Create a fresh database on each testing session."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-    
-    yield engine
-    
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    
-    await engine.dispose()
 
-@pytest_asyncio.fixture
-async def db_session(engine) -> AsyncGenerator[AsyncSession, None]:
-    """Create a test database session."""
-    async_session = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
-    async with async_session() as session:
-        yield session
+    # Create a new session for the test
+    async with TestingSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            # Clean up at the end of the session
+            await session.close()
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.drop_all)
 
-@pytest.fixture
-def app(db_session) -> FastAPI:
-    """Create a test FastAPI application."""
-    app = create_app()
-    app.dependency_overrides[get_db] = lambda: db_session
-    return app
-
-@pytest.fixture
-def client(app) -> TestClient:
-    """Create a test client."""
-    return TestClient(app)
-
-@pytest.fixture
-def minio_client():
-    """Create a test MinIO client."""
-    return Minio(
-        settings.MINIO_ENDPOINT,
-        access_key=settings.MINIO_ROOT_USER,
-        secret_key=settings.MINIO_ROOT_PASSWORD,
-        secure=settings.MINIO_SECURE
-    )
-
-@pytest_asyncio.fixture
-async def redis_client():
-    """Create a test Redis client."""
-    client = redis.Redis(
-        host=settings.REDIS_HOST,
-        port=settings.REDIS_PORT,
-        db=settings.REDIS_DB,
-        decode_responses=True
-    )
-    yield client
-    await client.close()
-
-@pytest.fixture
-def test_user_data() -> Dict[str, str]:
-    """Test user data."""
+@pytest.fixture(scope="session")
+def test_user():
+    """Create a test user for authentication."""
     return {
+        "id": 1,
         "email": "test@example.com",
-        "password": "Test123!@#",
-        "full_name": "Test User"
+        "username": "testuser",
+        "is_active": True
     }
 
-@pytest_asyncio.fixture
-async def test_user(db_session: AsyncSession, test_user_data: dict) -> User:
-    """Create a test user."""
-    from app.modules.auth.service import AuthService
-    
-    auth_service = AuthService()
-    user = await auth_service.create_user(
-        email=test_user_data["email"],
-        password=test_user_data["password"],
-        db=db_session
-    )
-    return user
+@pytest.fixture(scope="session")
+async def test_user_token(test_user, db: AsyncSession) -> str:
+    """Create a JWT token for the test user and store it in the database."""
+    try:
+        # Create the test user in the database if it doesn't exist
+        user = User(
+            id=test_user["id"],
+            email=test_user["email"],
+            username=test_user["username"],
+            hashed_password=pwd_context.hash("testpassword"),
+            is_active=test_user["is_active"]
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
 
-@pytest.fixture
-def test_file_data() -> Dict[str, Any]:
-    """Test file data."""
-    return {
-        "filename": "test.txt",
-        "content_type": "text/plain",
-        "size": 100,
-        "metadata": {"test": "metadata"}
-    }
+        # Create JWT token with long expiration for tests
+        expires_delta = timedelta(days=365)  # 1 year expiration for tests
+        expires_at = datetime.utcnow() + expires_delta
+        token_data = {
+            "sub": str(user.id),
+            "exp": int(expires_at.timestamp())
+        }
+        access_token = create_access_token(token_data, expires_delta)
 
-@pytest_asyncio.fixture
-async def test_file(db_session: AsyncSession, test_user: User, test_file_data: dict) -> File:
-    """Create a test file."""
-    file = File(
-        filename=test_file_data["filename"],
-        content_type=test_file_data["content_type"],
-        size=test_file_data["size"],
-        user_id=test_user.id
-    )
-    db_session.add(file)
-    await db_session.commit()
-    await db_session.refresh(file)
-    return file
+        # Store token in database
+        token = Token(
+            token=access_token,
+            token_type="bearer",
+            user_id=user.id,
+            expires_at=expires_at,
+            is_revoked=False
+        )
+        db.add(token)
+        await db.commit()
 
-@pytest_asyncio.fixture
-async def test_processing_task(db_session: AsyncSession, test_file: File) -> ProcessingTask:
-    """Create a test processing task."""
-    task = ProcessingTask(
-        file_id=test_file.id,
-        task_type="text_classification",
-        status="pending"
-    )
-    db_session.add(task)
-    await db_session.commit()
-    await db_session.refresh(task)
-    return task
+        return access_token
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to create test user token: {str(e)}")
+        raise
 
-@pytest.fixture
-def auth_headers(test_user: User) -> Dict[str, str]:
-    """Generate authentication headers."""
-    from app.modules.auth.service import create_access_token
-    access_token = create_access_token({"sub": str(test_user.id)})
-    return {"Authorization": f"Bearer {access_token}"}
+@pytest.fixture(scope="session")
+def client() -> Generator:
+    """Create a test client using the test database."""
+    async def override_get_db():
+        try:
+            db = TestingSessionLocal()
+            yield db
+        finally:
+            await db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides.clear()
+
+@pytest.fixture(scope="session")
+async def async_client() -> AsyncGenerator[httpx.AsyncClient, None]:
+    """Create an async test client."""
+    async def override_get_db():
+        try:
+            db = TestingSessionLocal()
+            yield db
+        finally:
+            await db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+        yield client
+    app.dependency_overrides.clear()
+
+@pytest.fixture(scope="session")
+def minio_client() -> Minio:
+    """Create a MinIO client for testing."""
+    try:
+        return Minio(
+            settings.MINIO_ENDPOINT,
+            access_key=settings.MINIO_ACCESS_KEY,
+            secret_key=settings.MINIO_SECRET_KEY,
+            secure=settings.MINIO_SECURE
+        )
+    except Exception as e:
+        logger.error(f"Failed to create MinIO client: {str(e)}")
+        raise
+
+@pytest.fixture(autouse=True)
+async def cleanup_test_data(db: AsyncSession):
+    """Clean up test data after each test."""
+    yield
+    try:
+        # Ensure any existing transaction is rolled back
+        await db.rollback()
+        
+        # Delete data in correct order to handle foreign key constraints
+        await db.execute(text("DELETE FROM shared_items WHERE owner_id != 1"))
+        await db.execute(text("DELETE FROM file_metadata WHERE file_id IN (SELECT id FROM files WHERE owner_id != 1)"))
+        await db.execute(text("DELETE FROM file_versions WHERE file_id IN (SELECT id FROM files WHERE owner_id != 1)"))
+        await db.execute(text("DELETE FROM files WHERE owner_id != 1"))
+        await db.execute(text("DELETE FROM user_roles WHERE user_id != 1"))
+        await db.execute(text("DELETE FROM tokens WHERE user_id != 1"))
+        await db.execute(text("DELETE FROM users WHERE id != 1"))
+        await db.execute(text("DELETE FROM roles WHERE id != 1"))
+        
+        # Reset sequences to handle the preserved test user
+        await db.execute(text("SELECT setval('users_id_seq', (SELECT MAX(id) FROM users))"))
+        await db.execute(text("SELECT setval('roles_id_seq', (SELECT MAX(id) FROM roles))"))
+        
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Error cleaning up test data: {str(e)}")
+        await db.rollback()

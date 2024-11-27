@@ -22,15 +22,15 @@ class User(Base):
     """User model"""
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, index=True, nullable=False)
-    username = Column(String(50), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(255), nullable=False)
-    full_name = Column(String(100))
-    is_active = Column(Boolean, default=True)
-    is_superuser = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    id: int = Column(Integer, primary_key=True, index=True)
+    email: str = Column(String(255), unique=True, index=True, nullable=False)
+    username: str = Column(String(50), unique=True, index=True, nullable=False)
+    hashed_password: str = Column(String(255), nullable=False)
+    full_name: str = Column(String(100))
+    is_active: bool = Column(Boolean, default=True)
+    is_superuser: bool = Column(Boolean, default=False)
+    created_at: datetime = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at: datetime = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
     roles = relationship("Role", secondary=user_roles, back_populates="users")
@@ -38,6 +38,8 @@ class User(Base):
     folders = relationship("Folder", back_populates="owner")
     tokens = relationship("Token", back_populates="user")
     chat_sessions = relationship("ChatSession", back_populates="user")
+    shared_items_owned = relationship("SharedItem", foreign_keys="SharedItem.owner_id", back_populates="owner")
+    shared_items_received = relationship("SharedItem", foreign_keys="SharedItem.shared_with_id", back_populates="shared_with")
 
 class Role(Base):
     """Role model for user permissions"""

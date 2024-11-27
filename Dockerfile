@@ -17,6 +17,11 @@ RUN apt-get update \
         python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Create logs directory and set permissions
+RUN mkdir -p /app/logs \
+    && chown -R nobody:nogroup /app/logs \
+    && chmod 777 /app/logs
+
 # Copy requirements
 COPY requirements.txt .
 

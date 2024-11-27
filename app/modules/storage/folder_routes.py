@@ -21,7 +21,23 @@ from app.modules.storage.service import StorageService
 router = APIRouter()
 logger = get_logger(__name__)
 
-@router.post("/folders", response_model=FolderResponse, tags=["Folders"])
+@router.post(
+    "/folders", 
+    response_model=FolderResponse, 
+    tags=["Folders"],
+    responses={
+        201: {
+            "description": "Folder created successfully",
+            "model": FolderResponse
+        },
+        404: {
+            "description": "Parent folder not found"
+        },
+        422: {
+            "description": "Validation error in request body"
+        }
+    }
+)
 async def create_folder(
     folder: FolderCreate,
     current_user: User = Depends(get_current_user),
@@ -56,7 +72,20 @@ async def create_folder(
         logger.error(f"Failed to create folder: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/folders", response_model=List[FolderResponse], tags=["Folders"])
+@router.get(
+    "/folders", 
+    response_model=List[FolderResponse], 
+    tags=["Folders"],
+    responses={
+        200: {
+            "description": "List of folders",
+            "model": List[FolderResponse]
+        },
+        404: {
+            "description": "Parent folder not found"
+        }
+    }
+)
 async def list_folders(
     parent_id: Optional[int] = Query(None, description="Parent folder ID"),
     current_user: User = Depends(get_current_user),
@@ -83,7 +112,20 @@ async def list_folders(
         logger.error(f"Failed to list folders: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/folders/{folder_id}", response_model=FolderResponse, tags=["Folders"])
+@router.get(
+    "/folders/{folder_id}", 
+    response_model=FolderResponse, 
+    tags=["Folders"],
+    responses={
+        200: {
+            "description": "Folder details",
+            "model": FolderResponse
+        },
+        404: {
+            "description": "Folder not found"
+        }
+    }
+)
 async def get_folder(
     folder_id: int = Path(..., description="Folder ID"),
     current_user: User = Depends(get_current_user),

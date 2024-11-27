@@ -52,7 +52,7 @@ async def test_update_user(client, test_user, auth_headers):
 
 async def test_invalid_login(client):
     """Test login with invalid credentials."""
-    response = await client.post("/api/v1/auth/login", data={
+    response = client.post("/api/v1/auth/login", data={
         "username": "invalid@example.com",
         "password": "wrongpassword"
     })
@@ -60,12 +60,12 @@ async def test_invalid_login(client):
 
 async def test_protected_route_without_token(client):
     """Test accessing protected route without token."""
-    response = await client.get("/api/v1/auth/me")
+    response = client.get("/api/v1/auth/me")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 async def test_protected_route_with_invalid_token(client):
     """Test accessing protected route with invalid token."""
-    response = await client.get(
+    response = client.get(
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer invalid_token"}
     )

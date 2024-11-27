@@ -13,15 +13,39 @@ router = APIRouter(prefix="/ai", tags=["AI Processing"])
 DEFAULT_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 DEFAULT_CLASSIFICATION_MODEL = "distilbert-base-uncased-finetuned-sst-2-english"
 
-# Initialize AI models with fallbacks
-text_embedder = SentenceTransformer(
-    getattr(settings, 'DEFAULT_EMBEDDING_MODEL', DEFAULT_EMBEDDING_MODEL)
-)
-text_classifier = pipeline(
-    "text-classification", 
-    model=getattr(settings, 'DEFAULT_CLASSIFICATION_MODEL', DEFAULT_CLASSIFICATION_MODEL), 
-    device="cpu"
-)
+class TextClassifier:
+    def __init__(self):
+        self.models = {}
+        
+    def classify(self, text: str, model_name: str = None) -> dict:
+        """Classify text using specified model"""
+        if model_name not in self.models:
+            self.models[model_name] = pipeline(
+                "text-classification",
+                model=model_name,
+                device="cpu"
+            )
+        
+        result = self.models[model_name](text)[0]
+        return {
+            "label": result["label"],
+            "confidence": result["score"]
+        }
+
+class TextEmbedder:
+    def __init__(self):
+        self.models = {}
+        
+    def embed(self, text: str, model_name: str = None) -> list:
+        """Generate embeddings using specified model"""
+        if model_name not in self.models:
+            self.models[model_name] = SentenceTransformer(model_name)
+        
+        return self.models[model_name].encode(text)
+
+# Initialize AI models
+text_embedder = TextEmbedder()
+text_classifier = TextClassifier()
 
 def init_ai_processor_module() -> APIRouter:
     """Initialize AI processor module."""
@@ -33,9 +57,6 @@ def init_ai_processor_module() -> APIRouter:
     
     # Include routes
     router.include_router(ai_router)
-    
-    # Initialize models and processors
-    global text_embedder, text_classifier
     
     return router
 

@@ -6,6 +6,26 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from uuid import UUID
 
+from app.modules.ai_processor.models import ProcessingStatus
+
+class TaskCreate(BaseModel):
+    """Task creation schema"""
+    file_id: int = Field(..., description="ID of the file to process")
+    task_type: str = Field(..., description="Type of processing task")
+    params: Optional[Dict[str, Any]] = Field(default=None, description="Optional task parameters")
+
+class TaskUpdate(BaseModel):
+    """Task update schema"""
+    status: ProcessingStatus = Field(..., description="New task status")
+    error_message: Optional[str] = Field(default=None, description="Error message if task failed")
+
+class ProcessingResult(BaseModel):
+    """Processing result schema"""
+    task_id: int = Field(..., description="ID of the associated task")
+    result_type: str = Field(..., description="Type of processing result")
+    result_data: Dict[str, Any] = Field(..., description="Processing result data")
+    confidence_score: Optional[float] = Field(default=None, description="Confidence score if applicable")
+
 class ChatMessage(BaseModel):
     """Chat message schema"""
     sender: str = Field(..., description="Message sender (user or ai)")

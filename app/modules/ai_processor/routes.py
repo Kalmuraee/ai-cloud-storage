@@ -251,76 +251,110 @@ async def get_file_metadata(
         logger.error(f"Failed to get file metadata: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/chat", response_model=ChatSessionResponse, tags=["Chat"])
+@router.post(
+    "/chat/sessions",
+    response_model=ChatSessionResponse,
+    tags=["Chat"],
+    responses={
+        201: {
+            "description": "Chat session created successfully",
+            "model": ChatSessionResponse
+        },
+        422: {
+            "description": "Validation error in request body"
+        }
+    }
+)
 async def create_chat_session(
     data: ChatSessionCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new chat session with specified folders"""
+    """
+    Create a new chat session.
+    
+    Creates a new chat session with the specified folders. The session will have access
+    to files in these folders for context during the conversation.
+    
+    - **folders**: List of folder IDs to include in the chat context
+    - **name**: Optional name for the chat session
+    """
     try:
-        service = AIProcessorService(db)
-        result = await service.create_chat_session(
-            user_id=current_user.id,
-            folder_ids=data.folders,
-            initial_message=data.message
-        )
-        return result
-    except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+        ai_service = AIProcessorService(db)
+        return await ai_service.create_chat_session(current_user.id, data)
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        logger.error(f"Failed to create chat session: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/chat/{session_id}", response_model=ChatMessageResponse, tags=["Chat"])
+@router.post(
+    "/chat/sessions/{session_id}/messages",
+    response_model=ChatMessageResponse,
+    tags=["Chat"],
+    responses={
+        200: {
+            "description": "Message processed successfully",
+            "model": ChatMessageResponse
+        },
+        404: {
+            "description": "Chat session not found"
+        },
+        422: {
+            "description": "Validation error in request body"
+        }
+    }
+)
 async def continue_chat_session(
     session_id: str,
     data: ChatMessageCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Continue an existing chat session"""
+    """
+    Continue a chat session by sending a new message.
+    
+    Sends a new message to an existing chat session and gets the AI's response.
+    The response will be generated using context from files in the session's folders.
+    
+    - **session_id**: ID of the chat session
+    - **message**: User's message text
+    """
     try:
-        service = AIProcessorService(db)
-        result = await service.continue_chat_session(
-            session_id=session_id,
-            message=data.message
-        )
-        return result
-    except ValueError as e:
-        raise HTTPException(
-            status_code=404,
-            detail=str(e)
-        )
+        ai_service = AIProcessorService(db)
+        return await ai_service.process_chat_message(session_id, current_user.id, data)
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        logger.error(f"Failed to process chat message: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/chat/{session_id}", response_model=ChatHistory, tags=["Chat"])
+@router.get(
+    "/chat/sessions/{session_id}/history",
+    response_model=ChatHistory,
+    tags=["Chat"],
+    responses={
+        200: {
+            "description": "Chat history retrieved successfully",
+            "model": ChatHistory
+        },
+        404: {
+            "description": "Chat session not found"
+        }
+    }
+)
 async def get_chat_history(
     session_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get chat session history"""
+    """
+    Get the message history for a chat session.
+    
+    Retrieves all messages exchanged in a chat session, including both user messages
+    and AI responses.
+    
+    - **session_id**: ID of the chat session to retrieve history for
+    """
     try:
-        service = AIProcessorService(db)
-        result = await service.get_chat_history(session_id)
-        return result
-    except ValueError as e:
-        raise HTTPException(
-            status_code=404,
-            detail=str(e)
-        )
+        ai_service = AIProcessorService(db)
+        return await ai_service.get_chat_history(session_id, current_user.id)
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        logger.error(f"Failed to get chat history: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -9,6 +9,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
+import json
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from app.core.database import Base
 
@@ -27,6 +29,7 @@ class ProcessingTask(Base):
     file_id = Column(Integer, ForeignKey("files.id"), nullable=False)
     task_type = Column(String(50), nullable=False)
     status = Column(SQLEnum(ProcessingStatus), default=ProcessingStatus.QUEUED)
+    params = Column(JSON, nullable=True)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     started_at = Column(DateTime(timezone=True), nullable=True)
@@ -56,9 +59,19 @@ class ChatSession(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    folder_ids = Column(ARRAY(Integer), nullable=False)
+    _folder_ids = Column('folder_ids', Text, nullable=False)  # Store as JSON string
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    @hybrid_property
+    def folder_ids(self):
+        """Get the folder IDs as a list"""
+        return json.loads(self._folder_ids) if self._folder_ids else []
+    
+    @folder_ids.setter
+    def folder_ids(self, value):
+        """Set the folder IDs as a JSON string"""
+        self._folder_ids = json.dumps(value) if value is not None else '[]'
     
     # Relationships
     messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")

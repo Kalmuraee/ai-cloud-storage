@@ -13,9 +13,11 @@ from app.core.database import Base
 class FileStatus(str, Enum):
     """File status enumeration"""
     PENDING = "pending"
+    ACTIVE = "active"  # File is active but not yet processed by AI
     PROCESSING = "processing"
     PROCESSED = "processed"
     FAILED = "failed"
+    DELETED = "deleted"
 
 class ItemType(str, Enum):
     """Storage item type enumeration"""
@@ -79,60 +81,64 @@ class File(Base):
     """File model for storing file metadata"""
     __tablename__ = "files"
 
-    id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String(255), nullable=False)
-    original_filename = Column(String(255), nullable=False)
-    content_type = Column(String(100), nullable=False)
-    size = Column(Integer, nullable=False)
-    bucket = Column(String(100), nullable=False)
-    path = Column(String(500), nullable=False)
-    status = Column(SQLEnum(FileStatus), default=FileStatus.PENDING)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    version = Column(Integer, default=1)
-    is_latest = Column(Boolean, default=True)
+    id: int = Column(Integer, primary_key=True, index=True)
+    filename: str = Column(String(255), nullable=False)
+    original_filename: str = Column(String(255), nullable=False)
+    content_type: str = Column(String(100), nullable=False)
+    size: int = Column(Integer, nullable=False)
+    bucket: str = Column(String(100), nullable=False)
+    path: str = Column(String(500), nullable=False)
+    status: FileStatus = Column(SQLEnum(FileStatus), default=FileStatus.PENDING)
+    created_at: datetime = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at: datetime = Column(DateTime(timezone=True), onupdate=func.now())
+    owner_id: int = Column(Integer, ForeignKey("users.id"), nullable=False)
+    folder_id: int = Column(Integer, ForeignKey("folders.id"), nullable=True)
+    version: int = Column(Integer, default=1)
+    is_latest: bool = Column(Boolean, default=True)
+    checksum: str = Column(String, nullable=True)
     
     # Relationships
     owner = relationship("User", back_populates="files")
+    folder = relationship("Folder", back_populates="files")
     file_metadata = relationship("FileMetadata", back_populates="file", uselist=False)
     folders = relationship("Folder", secondary=folder_files, back_populates="files")
-    versions = relationship("FileVersion", back_populates="file")
     shared_items = relationship("SharedItem", back_populates="file", cascade="all, delete-orphan")
     tags = relationship("FileTag", back_populates="file")
+    file_versions = relationship("FileVersion", back_populates="file")
 
 class FileVersion(Base):
     """File version model for version control"""
     __tablename__ = "file_versions"
 
-    id = Column(Integer, primary_key=True, index=True)
-    file_id = Column(Integer, ForeignKey("files.id"), nullable=False)
-    version = Column(Integer, nullable=False)
-    size = Column(Integer, nullable=False)
-    path = Column(String(500), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    comment = Column(Text, nullable=True)
-    
+    id: int = Column(Integer, primary_key=True, index=True)
+    file_id: int = Column(Integer, ForeignKey("files.id"), nullable=False)
+    version: int = Column(Integer, nullable=False)
+    size: int = Column(Integer, nullable=False)
+    checksum: str = Column(String, nullable=True)
+    created_at: datetime = Column(DateTime(timezone=True), server_default=func.now())
+
     # Relationships
-    file = relationship("File", back_populates="versions")
-    creator = relationship("User")
+    file = relationship("File", back_populates="file_versions")
 
 class SharedItem(Base):
     """Model for shared files and folders"""
     __tablename__ = "shared_items"
 
-    id = Column(Integer, primary_key=True, index=True)
-    file_id = Column(Integer, ForeignKey("files.id"), nullable=True)
-    folder_id = Column(Integer, ForeignKey("folders.id"), nullable=True)
-    shared_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    share_link = Column(String(100), unique=True, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    id: int = Column(Integer, primary_key=True, index=True)
+    file_id: int = Column(Integer, ForeignKey("files.id"), nullable=True)
+    folder_id: int = Column(Integer, ForeignKey("folders.id"), nullable=True)
+    owner_id: int = Column(Integer, ForeignKey("users.id"), nullable=False)
+    shared_with_id: int = Column(Integer, ForeignKey("users.id"), nullable=False)
+    status: ShareStatus = Column(SQLEnum(ShareStatus), nullable=False, default=ShareStatus.PENDING)
+    share_link: str = Column(String, unique=True, nullable=True)
+    created_at: datetime = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at: datetime = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
     file = relationship("File", back_populates="shared_items")
     folder = relationship("Folder", back_populates="shared_items")
-    owner = relationship("User", foreign_keys=[shared_by])
+    owner = relationship("User", foreign_keys=[owner_id], back_populates="shared_items_owned")
+    shared_with = relationship("User", foreign_keys=[shared_with_id], back_populates="shared_items_received")
 
 class FolderCollaborator(Base):
     """Model for folder collaborators"""

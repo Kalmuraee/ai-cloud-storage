@@ -1,58 +1,76 @@
 """
 Configuration settings for the AI Cloud Storage service.
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Set
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    # API Configuration
-    API_V1_STR: str = "/api/v1"
+    # Project Information
     PROJECT_NAME: str = "AI Cloud Storage"
     VERSION: str = "1.0.0"
+    API_V1_STR: str = "/api/v1"
     DESCRIPTION: str = "AI-powered cloud storage service"
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
     
     # Environment
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     TESTING: bool = False
-    
-    # Module Settings
     STORAGE_MODULE_ENABLED: bool = True
-    AI_PROCESSOR_MODULE_ENABLED: bool = True
     
-    # Database
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = 5432
-    POSTGRES_USER: str = "aicloud"
-    POSTGRES_PASSWORD: str = "aicloud"
-    POSTGRES_DB: str = "aicloud"
-    DB_POOL_SIZE: int = 32
-    DB_MAX_OVERFLOW: int = 64
+    # Database Configuration
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_cloud_storage"
     DB_ECHO: bool = False
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
     
-    @property
-    def DATABASE_URL(self) -> str:
-        """Get database URL as string"""
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}?sslmode=disable"
-    
-    # MinIO Storage
-    MINIO_ENDPOINT: str = "localhost:9000"
-    MINIO_ROOT_USER: str = "minioadmin"
-    MINIO_ROOT_PASSWORD: str = "minioadmin"
-    MINIO_SECURE: bool = False
-    MINIO_REGION: str = "us-east-1"
-    MINIO_BUCKET_NAME: str = "aicloud-storage"
-    
-    # Security
-    JWT_SECRET_KEY: str = "d5e087a4f1c8e6b3a2d9c0b7e4f8a1d3"  # Replace with a secure key in production
+    # JWT
+    JWT_SECRET_KEY: str = "your-secret-key"  # Change in production
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    
+    # MinIO Configuration
+    MINIO_ENDPOINT: str = "localhost:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_SECURE: bool = False
+    MINIO_BUCKET_NAME: str = "ai-cloud-storage"
+    MINIO_REGION: str = "us-east-1"  # Added back
+    
+    # Redis Configuration
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    
+    # File Upload
+    MAX_UPLOAD_SIZE: int = 100 * 1024 * 1024  # 100MB
+    ALLOWED_EXTENSIONS: Set[str] = {"txt", "pdf", "png", "jpg", "jpeg", "gif"}
+    
+    # AI Processing
+    MODEL_TIMEOUT: int = 30  # seconds
+    MAX_PROCESSING_RETRIES: int = 3
+    
+    # CORS Configuration
+    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    
+    # Rate Limiting
+    ENABLE_RATE_LIMIT: bool = True
+    RATE_LIMIT_MAX_REQUESTS: int = 100
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
+    
+    # AI Models
+    DEFAULT_CLASSIFICATION_MODEL: str = "distilbert-base-uncased"
+    DEFAULT_EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     
     model_config = SettingsConfigDict(
         case_sensitive=True,
         env_file=".env",
+        env_file_encoding="utf-8",
         extra="allow"
     )
     
@@ -64,3 +82,7 @@ class Settings(BaseSettings):
         return v
 
 settings = Settings()
+
+def get_settings() -> Settings:
+    """Get settings instance"""
+    return settings
